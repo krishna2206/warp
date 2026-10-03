@@ -19,6 +19,11 @@ jobs:
           targets: aarch64-apple-darwin
           components: rustfmt, clippy
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
