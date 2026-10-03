@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use settings::macros::define_settings_group;
 use settings::{RespectUserSyncSetting, SupportedPlatforms, SyncToCloud};
@@ -235,6 +235,63 @@ pub fn canonical_directory_key(path: &Path) -> String {
         .unwrap_or_else(|_| path.to_path_buf())
         .to_string_lossy()
         .to_string()
+}
+
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    schemars::JsonSchema,
+    settings_value::SettingsValue,
+)]
+#[schemars(description = "Mapping of directory paths to their tab icon image paths (SVG/PNG).")]
+pub struct DirectoryTabIcons(pub(crate) HashMap<String, PathBuf>);
+
+settings::macros::implement_setting_for_enum!(
+    DirectoryTabIcons,
+    TabSettings,
+    SupportedPlatforms::ALL,
+    SyncToCloud::Never,
+    surface: settings::SettingSurfaces::GUI,
+    private: false,
+    toml_path: "appearance.tabs.directory_tab_icons",
+    max_table_depth: 0,
+    description: "Mapping of directory paths to their tab icon image paths (SVG/PNG).",
+);
+
+impl DirectoryTabIcons {
+    /// Returns the configured tab icon path for a directory using longest-prefix matching.
+    /// Returns `None` if no configured directory is a prefix of `dir`.
+    pub fn icon_for_directory(&self, canonical_dir: &Path) -> Option<PathBuf> {
+        self.0
+            .iter()
+            .filter_map(|(configured_path, icon_path)| {
+                let configured = Path::new(configured_path);
+                canonical_dir
+                    .starts_with(configured)
+                    .then_some((configured, icon_path.clone()))
+            })
+            .max_by_key(|(configured, _)| configured.as_os_str().len())
+            .map(|(_, icon_path)| icon_path)
+    }
+
+    /// Returns a new value with the given directory's icon updated.
+    pub fn with_icon(&self, path: &Path, icon_path: PathBuf) -> Self {
+        let mut map = self.0.clone();
+        map.insert(canonical_directory_key(path), icon_path);
+        Self(map)
+    }
+
+    /// Returns a new value with the given directory's icon removed.
+    pub fn without_icon(&self, path: &Path) -> Self {
+        let mut map = self.0.clone();
+        map.remove(&canonical_directory_key(path));
+        Self(map)
+    }
 }
 
 #[derive(
@@ -577,6 +634,7 @@ define_settings_group!(TabSettings, settings: [
     workspace_decoration_visibility: WorkspaceDecorationVisibility,
     close_button_position: TabCloseButtonPosition,
     directory_tab_colors: DirectoryTabColors,
+    directory_tab_icons: DirectoryTabIcons,
 ]);
 
 #[cfg(test)]

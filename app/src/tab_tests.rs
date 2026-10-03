@@ -182,7 +182,7 @@ fn next_tab_color_follows_the_canonical_palette_and_clears_after_the_last_color(
         SelectedTabColor::Color(TAB_COLOR_OPTIONS[0])
     );
     assert_eq!(
-        next_tab_color(Some(AnsiColorIdentifier::White)),
+        next_tab_color(Some(AnsiColorIdentifier::Black)),
         SelectedTabColor::Color(TAB_COLOR_OPTIONS[0])
     );
 }

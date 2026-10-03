@@ -3901,6 +3901,12 @@ impl Workspace {
                 }
                 ctx.notify();
             }
+            TabSettingsChangedEvent::DirectoryTabIcons { .. } => {
+                for tab in &mut self.tabs {
+                    Self::sync_codebase_tab_icon(tab, ctx);
+                }
+                ctx.notify();
+            }
             TabSettingsChangedEvent::VerticalTabsViewMode { .. }
             | TabSettingsChangedEvent::VerticalTabsTabItemMode { .. }
             | TabSettingsChangedEvent::VerticalTabsPrimaryInfo { .. }
@@ -5868,6 +5874,80 @@ impl Workspace {
 
         tab.default_directory_color = color;
         ctx.notify();
+    }
+
+    /// Syncs the tab icon for the given tab based on the active terminal's CWD.
+    /// If the CWD is within a directory that has a configured custom icon, applies it.
+    fn sync_codebase_tab_icon(tab: &mut TabData, ctx: &mut ViewContext<Self>) {
+        let Some(cwd) = tab
+            .pane_group
+            .as_ref(ctx)
+            .active_session_view(ctx)
+            .and_then(|tv| tv.as_ref(ctx).canonical_session_pwd_if_local(ctx))
+        else {
+            return;
+        };
+
+        let icon = TabSettings::as_ref(ctx)
+            .directory_tab_icons
+            .value()
+            .icon_for_directory(cwd.as_path());
+
+        tab.custom_directory_icon = icon;
+        ctx.notify();
+    }
+
+    fn prompt_set_tab_icon(&mut self, index: usize, ctx: &mut ViewContext<Self>) {
+        let Some(tab) = self.tabs.get(index) else { return; };
+        let Some(cwd) = tab
+            .pane_group
+            .as_ref(ctx)
+            .active_session_view(ctx)
+            .and_then(|tv| tv.as_ref(ctx).canonical_session_pwd_if_local(ctx))
+        else {
+            return;
+        };
+
+        let config = FilePickerConfiguration::new()
+            .set_allowed_file_types(vec![warpui::platform::file_picker::FileType::Image]);
+
+        ctx.open_file_picker(
+            move |result, ctx| {
+                if let Ok(paths) = result {
+                    if let Some(path_str) = paths.into_iter().next() {
+                        let icon_path = std::path::PathBuf::from(path_str);
+                        let updated = TabSettings::as_ref(ctx)
+                            .directory_tab_icons
+                            .value()
+                            .with_icon(&cwd, icon_path);
+                        TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+                            settings.directory_tab_icons.set(updated, ctx);
+                        });
+                    }
+                }
+            },
+            config,
+        );
+    }
+
+    fn clear_tab_icon(&mut self, index: usize, ctx: &mut ViewContext<Self>) {
+        let Some(tab) = self.tabs.get(index) else { return; };
+        let Some(cwd) = tab
+            .pane_group
+            .as_ref(ctx)
+            .active_session_view(ctx)
+            .and_then(|tv| tv.as_ref(ctx).canonical_session_pwd_if_local(ctx))
+        else {
+            return;
+        };
+
+        let updated = TabSettings::as_ref(ctx)
+            .directory_tab_icons
+            .value()
+            .without_icon(&cwd);
+        TabSettings::handle(ctx).update(ctx, |settings, ctx| {
+            settings.directory_tab_icons.set(updated, ctx);
+        });
     }
 
     fn clear_tab_name_editor(&mut self, ctx: &mut ViewContext<Self>) {
@@ -16242,6 +16322,7 @@ impl Workspace {
                         .find(|t| t.pane_group.id() == pane_group.id())
                 {
                     Self::sync_codebase_tab_color(tab, ctx);
+                    Self::sync_codebase_tab_icon(tab, ctx);
                 }
             }
             pane_group::Event::ActiveSessionChanged => {
@@ -16763,6 +16844,7 @@ impl Workspace {
                         .find(|t| t.pane_group.id() == pane_group.id())
                 {
                     Self::sync_codebase_tab_color(tab, ctx);
+                    Self::sync_codebase_tab_icon(tab, ctx);
                 }
             }
             #[cfg(feature = "local_fs")]
@@ -24118,6 +24200,8 @@ impl TypedActionView for Workspace {
             MoveTabRight(index) => self.move_tab(*index, TabMovement::Right, ctx),
             RenameTab(index) => self.rename_tab(*index, ctx),
             ResetTabName(index) => self.clear_tab_name(*index, ctx),
+            PromptSetTabIcon(index) => self.prompt_set_tab_icon(*index, ctx),
+            ClearTabIcon(index) => self.clear_tab_icon(*index, ctx),
             RenamePane(locator) => self.rename_pane(*locator, ctx),
             ResetPaneName(locator) => self.clear_pane_name(*locator, ctx),
             RenameActiveTab => {

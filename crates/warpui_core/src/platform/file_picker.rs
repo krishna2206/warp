@@ -29,7 +29,7 @@ impl FileType {
     /// List of supported file extensions for this file type.
     pub fn extensions(&self) -> &[&str] {
         match self {
-            FileType::Image => &["png", "jpg", "jpeg"],
+            FileType::Image => &["png", "jpg", "jpeg", "svg", "ico", "webp"],
             FileType::Yaml => &["yaml", "yml"],
             FileType::Markdown => &["md", "markdown"],
         }

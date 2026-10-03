@@ -1,0 +1,44 @@
+name: Build WarpOss macOS
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build WarpOss (macOS arm64)
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          targets: aarch64-apple-darwin
+          components: rustfmt, clippy
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: macos-aarch64-oss
+
+      - name: Install cargo-bundle
+        run: script/install_cargo_bundle
+
+      - name: Build and Bundle WarpOss
+        run: |
+          script/bundle --channel oss --arch aarch64 --selfsign
+
+      - name: Archive WarpOss.app
+        run: |
+          cd target/aarch64-apple-darwin/release/bundle/osx
+          zip -r -y "${{ github.workspace }}/WarpOss-macOS-arm64.zip" WarpOss.app
+
+      - name: Upload WarpOss Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WarpOss-macOS-arm64
+          path: WarpOss-macOS-arm64.zip
+          retention-days: 14

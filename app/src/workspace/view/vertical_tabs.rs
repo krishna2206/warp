@@ -17,12 +17,13 @@ use warp_core::ui::color::blend::Blend;
 use warp_core::ui::color::coloru_with_opacity;
 use warp_core::ui::theme::color::internal_colors;
 use warp_core::ui::theme::{AnsiColorIdentifier, Fill as WarpThemeFill, WarpTheme};
+use warpui::assets::asset_cache::AssetSource;
 use warpui::elements::{
-    Border, ChildAnchor, Clipped, ClippedScrollStateHandle, ClippedScrollable, ConstrainedBox,
-    Container, CornerRadius, CrossAxisAlignment, DispatchEventResult, DragAxis, DragBarSide,
-    Draggable, DropShadow, DropTarget, Element, Empty, EventHandler, Expanded, Fill as ElementFill,
-    Flex, Highlight, Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle,
-    OffsetPositioning, Padding, ParentAnchor, ParentElement, ParentOffsetBounds,
+    Border, CacheOption, ChildAnchor, Clipped, ClippedScrollStateHandle, ClippedScrollable,
+    ConstrainedBox, Container, CornerRadius, CrossAxisAlignment, DispatchEventResult, DragAxis,
+    DragBarSide, Draggable, DropShadow, DropTarget, Element, Empty, EventHandler, Expanded,
+    Fill as ElementFill, Flex, Highlight, Hoverable, Image, MainAxisAlignment, MainAxisSize,
+    MouseStateHandle, OffsetPositioning, Padding, ParentAnchor, ParentElement, ParentOffsetBounds,
     PositionedElementAnchor, PositionedElementOffsetBounds, Radius, Resizable,
     ResizableStateHandle, SavePosition, ScrollTarget, ScrollToPositionMode, ScrollbarWidth,
     Shrinkable, Stack, Text, resizable_state_handle,
@@ -3350,6 +3351,24 @@ fn resolve_icon_with_status_variant(
         TypedPane::Terminal(terminal_pane) => {
             let terminal_view = terminal_pane.terminal_view(app);
             let terminal_view = terminal_view.as_ref(app);
+            if let Some(cwd) = terminal_view.canonical_session_pwd_if_local(app) {
+                if let Some(icon_path) = TabSettings::as_ref(app)
+                    .directory_tab_icons
+                    .value()
+                    .icon_for_directory(cwd.as_path())
+                {
+                    if icon_path.exists() {
+                        let source = AssetSource::LocalFile {
+                            path: icon_path.to_string_lossy().to_string(),
+                            content_version: None,
+                        };
+                        let icon_element = Image::new(source, CacheOption::BySize)
+                            .with_size(vec2f(16.0, 16.0))
+                            .finish();
+                        return IconWithStatusVariant::NeutralElement { icon_element };
+                    }
+                }
+            }
             match terminal_view_agent_icon_variant(terminal_view, app) {
                 Some(variant) => variant,
                 _ => {

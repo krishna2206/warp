@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,11 +12,12 @@ use warp_core::ui::builder::UiBuilder;
 use warp_core::ui::theme::AnsiColors;
 use warp_core::ui::theme::color::internal_colors;
 use warpui::r#async::{SpawnedFutureHandle, Timer};
+use warpui::assets::asset_cache::AssetSource;
 use warpui::elements::{
-    Align, Border, ChildAnchor, Clipped, ConstrainedBox, Container, CornerRadius,
+    Align, Border, CacheOption, ChildAnchor, Clipped, ConstrainedBox, Container, CornerRadius,
     CrossAxisAlignment, DragAxis, Draggable, DraggableState, DropTarget, Element, Empty, Fill,
-    Flex, Hoverable, MainAxisAlignment, MainAxisSize, MouseStateHandle, OffsetPositioning, Padding,
-    ParentAnchor, ParentElement, ParentOffsetBounds, PositionedElementAnchor,
+    Flex, Hoverable, Image, MainAxisAlignment, MainAxisSize, MouseStateHandle, OffsetPositioning,
+    Padding, ParentAnchor, ParentElement, ParentOffsetBounds, PositionedElementAnchor,
     PositionedElementOffsetBounds, Radius, Rect, SavePosition, Shrinkable, SizeConstraintCondition,
     SizeConstraintSwitch, Stack, Text,
 };
@@ -370,6 +372,8 @@ pub struct TabData {
     pub in_multi_selection: bool,
     /// True when this tab is pinned to the front of the tab list.
     pub pinned: bool,
+    /// Custom icon path (SVG/PNG) associated with this tab / directory.
+    pub custom_directory_icon: Option<PathBuf>,
 }
 
 const TAB_COLOR_ICON_PATH: &str = "bundled/svg/ellipse.svg";
@@ -390,6 +394,7 @@ impl TabData {
             group_id: None,
             in_multi_selection: false,
             pinned: false,
+            custom_directory_icon: None,
         }
     }
 
@@ -699,6 +704,18 @@ impl TabData {
                 menu_items.push(
                     MenuItemFields::new("Reset tab name")
                         .with_on_select_action(WorkspaceAction::ResetTabName(index))
+                        .into_item(),
+                );
+            }
+            menu_items.push(
+                MenuItemFields::new("Set tab icon...")
+                    .with_on_select_action(WorkspaceAction::PromptSetTabIcon(index))
+                    .into_item(),
+            );
+            if self.custom_directory_icon.is_some() {
+                menu_items.push(
+                    MenuItemFields::new("Reset tab icon")
+                        .with_on_select_action(WorkspaceAction::ClearTabIcon(index))
                         .into_item(),
                 );
             }
@@ -1639,6 +1656,24 @@ impl<'a> TabComponent<'a> {
     }
 
     fn render_indicator(&self) -> Option<Box<dyn Element>> {
+        if let Some(ref icon_path) = self.tab.custom_directory_icon {
+            if icon_path.exists() {
+                let source = AssetSource::LocalFile {
+                    path: icon_path.to_string_lossy().to_string(),
+                    content_version: None,
+                };
+                let image = Image::new(source, CacheOption::BySize)
+                    .with_size(vec2f(16.0, 16.0))
+                    .finish();
+                return Some(
+                    ConstrainedBox::new(image)
+                        .with_width(16.0)
+                        .with_height(16.0)
+                        .finish(),
+                );
+            }
+        }
+
         let icon = match &self.indicator {
             Indicator::UnsavedChanges => Some(
                 Container::new(
