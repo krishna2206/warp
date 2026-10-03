@@ -29,8 +29,10 @@ jobs:
         with:
           key: macos-aarch64-oss-debug
 
-      - name: Install cargo-bundle
-        run: script/install_cargo_bundle
+      - name: Install cargo-bundle and create-dmg
+        run: |
+          script/install_cargo_bundle
+          brew install create-dmg
 
       - name: Build and Bundle WarpOss
         env:
