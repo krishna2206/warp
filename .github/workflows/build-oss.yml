@@ -27,18 +27,27 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: macos-aarch64-oss
+          key: macos-aarch64-oss-debug
 
       - name: Install cargo-bundle
         run: script/install_cargo_bundle
 
       - name: Build and Bundle WarpOss
+        env:
+          NO_LICENSES: "1"
         run: |
-          script/bundle --channel oss --arch aarch64 --selfsign
+          script/bundle --channel oss --arch aarch64 --selfsign --debug
 
       - name: Archive WarpOss.app
         run: |
-          cd target/aarch64-apple-darwin/release/bundle/osx
+          APP_PATH=$(find target -name "WarpOss.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: WarpOss.app not found in target/" >&2
+            exit 1
+          fi
+          echo "Found WarpOss.app at $APP_PATH"
+          APP_DIR=$(dirname "$APP_PATH")
+          cd "$APP_DIR"
           zip -r -y "${{ github.workspace }}/WarpOss-macOS-arm64.zip" WarpOss.app
 
       - name: Upload WarpOss Artifact
