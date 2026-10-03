@@ -3362,8 +3362,10 @@ fn resolve_icon_with_status_variant(
                             path: icon_path.to_string_lossy().to_string(),
                             content_version: None,
                         };
-                        let icon_element = Image::new(source, CacheOption::BySize)
-                            .with_size(vec2f(16.0, 16.0))
+                        let image = Image::new(source, CacheOption::BySize).finish();
+                        let icon_element = ConstrainedBox::new(image)
+                            .with_width(16.0)
+                            .with_height(16.0)
                             .finish();
                         return IconWithStatusVariant::NeutralElement { icon_element };
                     }

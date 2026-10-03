@@ -1662,9 +1662,7 @@ impl<'a> TabComponent<'a> {
                     path: icon_path.to_string_lossy().to_string(),
                     content_version: None,
                 };
-                let image = Image::new(source, CacheOption::BySize)
-                    .with_size(vec2f(16.0, 16.0))
-                    .finish();
+                let image = Image::new(source, CacheOption::BySize).finish();
                 return Some(
                     ConstrainedBox::new(image)
                         .with_width(16.0)

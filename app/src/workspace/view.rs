@@ -5919,9 +5919,9 @@ impl Workspace {
                         let updated = TabSettings::as_ref(ctx)
                             .directory_tab_icons
                             .value()
-                            .with_icon(&cwd, icon_path);
+                            .with_icon(cwd.as_path(), icon_path);
                         TabSettings::handle(ctx).update(ctx, |settings, ctx| {
-                            settings.directory_tab_icons.set(updated, ctx);
+                            let _ = settings.directory_tab_icons.set_value(updated, ctx);
                         });
                     }
                 }
@@ -5944,9 +5944,9 @@ impl Workspace {
         let updated = TabSettings::as_ref(ctx)
             .directory_tab_icons
             .value()
-            .without_icon(&cwd);
+            .without_icon(cwd.as_path());
         TabSettings::handle(ctx).update(ctx, |settings, ctx| {
-            settings.directory_tab_icons.set(updated, ctx);
+            let _ = settings.directory_tab_icons.set_value(updated, ctx);
         });
     }
 
